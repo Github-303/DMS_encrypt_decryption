@@ -14,6 +14,7 @@ public class TextWatermarkService {
 
         // Add header watermark
         watermarked.append("CONFIDENTIAL DOCUMENT - ").append(timestamp).append("\n");
+        watermarked.append("Khc - CMC - IT3 - ").append(timestamp).append("\n");
         watermarked.append("============================================\n\n");
 
         // Add watermark to each line

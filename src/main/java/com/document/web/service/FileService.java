@@ -13,18 +13,24 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import jakarta.annotation.PostConstruct;
 
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+
 @Service
 public class FileService {
+    private static final String SECRET_KEY = "1234567890123456";
 
     @Value("${file.upload-dir}")
     private String uploadDir;
@@ -166,21 +172,52 @@ public class FileService {
         documentRepository.save(document);
         return fileVersionRepository.save(version);
     }
-
-    public String saveFile(byte[] content, String originalFilename) throws Exception {
-        String uniqueFilename = generateUniqueFilename(originalFilename);
-        Path targetLocation = fileStoragePath.resolve(uniqueFilename);
-
-        // For text files, encrypt the content
-        if (originalFilename.toLowerCase().endsWith(".txt")) {
-            var key = encryptionService.generateKey();
-            String encryptedContent = encryptionService.encryptToBase64(content, key);
-            Files.write(targetLocation, encryptedContent.getBytes());
-            return targetLocation.toString() + ".encrypted";
-        } else {
-            Files.write(targetLocation, content);
-            return targetLocation.toString();
+    public String encryptFile(String filePath) throws Exception {
+        if (!filePath.toLowerCase().endsWith(".txt")) {
+            throw new IllegalArgumentException("Only txt files can be encrypted");
         }
+
+        Path inputPath = Paths.get(filePath);
+        if (!Files.exists(inputPath)) {
+            throw new FileNotFoundException("File not found: " + filePath);
+        }
+
+        byte[] inputBytes = Files.readAllBytes(inputPath);
+
+        Cipher cipher = Cipher.getInstance("AES");
+        SecretKeySpec keySpec = new SecretKeySpec(SECRET_KEY.getBytes(), "AES");
+        cipher.init(Cipher.ENCRYPT_MODE, keySpec);
+
+        byte[] encryptedBytes = cipher.doFinal(inputBytes);
+
+        Path encryptedPath = Paths.get(filePath + ".encrypted");
+        Files.write(encryptedPath, encryptedBytes);
+
+        Files.deleteIfExists(inputPath);
+
+        return encryptedPath.toString();
+    }
+    public String saveFile(byte[] content, String originalFilename) throws IOException {
+        String fileExtension = getFileExtension(originalFilename);
+        String uniqueFilename = UUID.randomUUID().toString() + fileExtension;
+
+        Path targetLocation = fileStoragePath.resolve(uniqueFilename);
+        System.out.println("Saving file to: " + targetLocation);
+
+        Files.write(targetLocation, content);
+
+        if (fileExtension.equalsIgnoreCase(".txt")) {
+            try {
+                uniqueFilename = uniqueFilename + ".encrypted";
+                String encryptedPath = encryptFile(targetLocation.toString());
+                return uniqueFilename;
+            } catch (Exception e) {
+                Files.deleteIfExists(targetLocation);
+                throw new IOException("Failed to encrypt file", e);
+            }
+        }
+
+        return uniqueFilename;
     }
 
     public void decryptFile(String encryptedPath, String outputPath, String keyString) throws Exception {
@@ -207,37 +244,20 @@ public class FileService {
     }
 
     public String getDecryptedContent(String encryptedPath, String encryptedKey) throws Exception {
-        if (encryptedPath == null || encryptedKey == null) {
-            throw new IllegalArgumentException("Path and key cannot be null");
-        }
+        Path fullPath = fileStoragePath.resolve(encryptedPath).normalize();
 
-        Path inputPath = Paths.get(encryptedPath);
-        if (!Files.exists(inputPath)) {
-            throw new FileNotFoundException("File not found: " + encryptedPath);
-        }
+        byte[] encryptedBytes = Files.readAllBytes(fullPath);
 
-        Path tempPath = null;
         try {
-            // Create temporary file
-            tempPath = Files.createTempFile("decrypted_", ".txt");
+            // Use same encryption mode as when encrypting
+            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+            SecretKeySpec keySpec = new SecretKeySpec(SECRET_KEY.getBytes(), "AES");
+            cipher.init(Cipher.DECRYPT_MODE, keySpec);
 
-            // Decrypt file
-            decryptFile(encryptedPath, tempPath.toString(), encryptedKey);
-
-            // Read content
-            String content = new String(Files.readAllBytes(tempPath));
-
-            return content;
-
-        } finally {
-            // Clean up temp file
-            if (tempPath != null) {
-                try {
-                    Files.deleteIfExists(tempPath);
-                } catch (IOException e) {
-                    System.err.println("Failed to delete temp file: " + e.getMessage());
-                }
-            }
+            byte[] decryptedBytes = cipher.doFinal(encryptedBytes);
+            return new String(decryptedBytes);
+        } catch (Exception e) {
+            throw new FileStorageException("Failed to decrypt file: " + e.getMessage(), e);
         }
     }
     
