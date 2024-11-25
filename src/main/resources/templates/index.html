@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Management System</title>
+
+    <!-- CSS Libraries -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+        <a class="navbar-brand" href="#">
+            <i class="fas fa-file-alt me-2"></i>Document Management System
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="documentOperations.refreshDocuments()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <!-- Alert Container -->
+    <div id="alertContainer"></div>
+
+    <!-- Upload Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-cloud-upload-alt me-2"></i>Upload Document
+            </h5>
+        </div>
+        <div class="card-body">
+            <form id="uploadForm" class="needs-validation" novalidate>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Select File</label>
+                            <input type="file" class="form-control" id="file" required>
+                            <div class="invalid-feedback">Please select a file.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" rows="2"
+                                      placeholder="Enter document description"></textarea>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <div class="form-check mb-2">
+                                <input type="checkbox" class="form-check-input" id="addWatermark">
+                                <label class="form-check-label" for="addWatermark">
+                                    <i class="fas fa-water me-1"></i>Add Watermark
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="preventScreenCapture">
+                                <label class="form-check-label" for="preventScreenCapture">
+                                    <i class="fas fa-lock me-1"></i>Prevent Screen Capture
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="upload-progress d-none">
+                    <div class="progress mb-3">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated"
+                             role="progressbar" aria-valuenow="0" aria-valuemin="0"
+                             aria-valuemax="100" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-upload me-1"></i> Upload
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Documents List -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-file-alt me-2"></i>Documents
+            </h5>
+            <div class="d-flex gap-2">
+                <input type="text" class="form-control search-input" id="searchInput"
+                       placeholder="Search documents...">
+                <button class="btn btn-outline-primary" onclick="documentOperations.searchDocuments()">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Version</th>
+                        <th>Size</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody id="documentsList">
+                    <!-- Documents will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Version History Modal -->
+<div class="modal fade" id="versionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-history me-2"></i>Version History
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                        <tr>
+                            <th>Version</th>
+                            <th>Created Date</th>
+                            <th>Size</th>
+                            <th>Change Log</th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody id="versionList">
+                        <!-- Versions will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Document Viewer Modal -->
+<div class="modal fade" id="documentViewerModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-file-alt me-2"></i>
+                    <span id="viewerDocumentName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="documentContent" class="document-content"></div>
+            </div>
+            <div class="modal-footer">
+                <div class="watermark-info" id="watermarkInfo">
+                    <i class="fas fa-water me-1"></i> This document has watermark
+                </div>
+                <div class="screen-capture-info" id="screenCaptureInfo">
+                    <i class="fas fa-shield-alt me-1"></i> Screen capture is prevented
+                </div>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- New Version Modal -->
+<div class="modal fade" id="newVersionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-upload me-2"></i>Upload New Version
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newVersionForm">
+                    <input type="hidden" id="documentId">
+                    <div class="mb-3">
+                        <label for="versionFile" class="form-label">Select File</label>
+                        <input type="file" class="form-control" id="versionFile" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="changeLog" class="form-label">Change Log</label>
+                        <textarea class="form-control" id="changeLog" rows="3"
+                                  placeholder="Describe the changes in this version"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="documentOperations.uploadNewVersion()">
+                    <i class="fas fa-upload me-1"></i> Upload Version
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Spinner Template -->
+<template id="loadingSpinner">
+    <div class="text-center py-4">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="text-muted mt-2">Loading...</p>
+    </div>
+</template>
+
+<!-- Empty State Template -->
+<template id="emptyState">
+    <tr>
+        <td colspan="7" class="text-center py-4">
+            <i class="fas fa-folder-open text-muted mb-2" style="font-size: 2rem;"></i>
+            <p class="text-muted mb-0">No documents found</p>
+        </td>
+    </tr>
+</template>
+
+<!-- JavaScript Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+<!-- Custom JavaScript -->
+<script src="/js/utils.js"></script>
+<script src="/js/documentOperations.js"></script>
+<script src="/js/main.js"></script>
+</body>
+</html>
