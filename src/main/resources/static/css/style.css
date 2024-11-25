@@ -163,7 +163,46 @@ body {
     color: #6c757d;
     margin-right: 1rem;
 }
+/* Add to style.css */
+.prevent-copy {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
 
+.watermark {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+.watermark-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    font-size: 2em;
+    color: rgba(0,0,0,0.1);
+    white-space: nowrap;
+    text-align: center;
+}
+
+.document-content {
+    position: relative;
+    z-index: 1;
+    background: white;
+    padding: 20px;
+    border-radius: 4px;
+    font-family: monospace;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
 /* Prevent printing */
 @media print {
     .document-content.prevent-capture {

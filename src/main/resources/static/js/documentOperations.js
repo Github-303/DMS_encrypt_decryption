@@ -234,53 +234,113 @@ const documentOperations = {
         }
     },
     async viewDocument(id) {
-        try {
-            const response = await fetch(`/api/viewer/document/${id}`);
-            if (!response.ok) throw new Error('Failed to load document');
+           try {
+               const response = await fetch(`/api/viewer/document/${id}`);
+               if (!response.ok) throw new Error('Failed to load document');
 
-            const data = await response.json();
+               const data = await response.json();
+               const contentDiv = document.getElementById('documentContent');
+               contentDiv.innerHTML = '';
 
-            // Set document content
-            const contentDiv = document.getElementById('documentContent');
-            contentDiv.innerHTML = '';
+               const contentWrapper = document.createElement('div');
+               contentWrapper.className = 'position-relative disable-select';
 
-            // Add content with optional protection
-            const contentWrapper = document.createElement('div');
-            contentWrapper.className = 'position-relative';
+               const pre = document.createElement('pre');
+               pre.textContent = data.content;
+               pre.className = data.preventScreenCapture ? 'document-content prevent-copy' : 'document-content';
+               contentWrapper.appendChild(pre);
 
-            // Add main content
-            const contentText = document.createElement('pre');
-            contentText.textContent = data.content;
-            contentText.className = data.preventScreenCapture ? 'document-content prevent-capture' : 'document-content';
-            contentWrapper.appendChild(contentText);
+               if (data.hasWatermark) {
+                   const watermark = this.addWatermark();
+                   contentWrapper.appendChild(watermark);
+               }
 
-            // Add watermark if needed
-            if (data.hasWatermark) {
-                const watermark = document.createElement('div');
-                watermark.className = 'watermark-overlay';
-                watermark.textContent = `CONFIDENTIAL - ${new Date().toLocaleString()}`;
-                contentWrapper.appendChild(watermark);
-            }
+               contentDiv.appendChild(contentWrapper);
 
-            contentDiv.appendChild(contentWrapper);
+               if (data.preventScreenCapture) {
+                   this.setupDocumentProtection();
+               }
 
-            // Update modal info
-            document.getElementById('watermarkInfo').style.display = data.hasWatermark ? 'block' : 'none';
-            document.getElementById('screenCaptureInfo').style.display = data.preventScreenCapture ? 'block' : 'none';
+               new bootstrap.Modal(document.getElementById('documentViewerModal')).show();
 
-            // Setup protection if needed
-            if (data.preventScreenCapture) {
-                setupDocumentProtection();
-            }
+           } catch (error) {
+               console.error('View error:', error);
+               utils.showAlert('Failed to view document', 'danger');
+           }
+       },
 
-            // Show modal
-            const modal = new bootstrap.Modal(document.getElementById('documentViewerModal'));
-            modal.show();
+    addWatermark() {
+           const watermark = document.createElement('div');
+           watermark.className = 'watermark';
+           watermark.innerHTML = `
+               <div class="watermark-text">
+                   Khc - IT3 - CONFIDENTIAL
+                   <br>
+                   ${new Date().toLocaleString()}
+                   <br>
+                   ${window.location.hostname}
+               </div>
+           `;
+           return watermark;
+       },
+    setupDocumentProtection() {
+       const content = document.querySelector('.prevent-copy');
+       if (!content) return;
 
-        } catch (error) {
-            console.error('View error:', error);
-            utils.showAlert('Failed to view document', 'danger');
-        }
+       // Prevent selection
+       content.addEventListener('selectstart', e => e.preventDefault());
+
+       // Prevent copy
+       content.addEventListener('copy', e => e.preventDefault());
+       content.addEventListener('cut', e => e.preventDefault());
+       content.addEventListener('paste', e => e.preventDefault());
+
+       // Prevent drag
+       content.addEventListener('dragstart', e => e.preventDefault());
+
+       // Prevent right click
+       content.addEventListener('contextmenu', e => e.preventDefault());
+
+       // Prevent screenshot shortcuts
+       document.addEventListener('keydown', e => {
+           if (
+               e.key === 'PrintScreen' ||
+               (e.ctrlKey && e.key === 'p') ||
+               (e.ctrlKey && e.key === 'c') ||
+               (e.ctrlKey && e.key === 'x') ||
+               (e.ctrlKey && e.key === 'v') ||
+               (e.metaKey && e.key === 'p') ||
+               (e.metaKey && e.key === 'c') ||
+               (e.metaKey && e.key === 'x') ||
+               (e.metaKey && e.key === 'v')
+           ) {
+               e.preventDefault();
+               utils.showAlert('This document is protected from copying and printing', 'warning');
+               return false;
+           }
+       });
+
+       // Blur on lost focus
+       window.addEventListener('blur', () => {
+           content.style.filter = 'blur(10px)';
+       });
+
+       window.addEventListener('focus', () => {
+           content.style.filter = 'none';
+       });
+
+       // Add dynamic watermark
+       setInterval(() => {
+           if (document.querySelector('.watermark-text')) {
+               document.querySelector('.watermark-text').innerHTML = `
+                   CONFIDENTIAL
+                   <br>
+                   ${new Date().toLocaleString()}
+                   <br>
+                   ${window.location.hostname}
+               `;
+           }
+       }, 1000);
     },
 
     async searchDocuments() {
